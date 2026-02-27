@@ -34,6 +34,9 @@ export function ActiveEmployees({
     return employees.length >= 5;
   });
 
+  // Success message state for Clear All action
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -105,26 +108,62 @@ export function ActiveEmployees({
     }
     setIsCollapsed(!isCollapsed);
   };
+
+  const handleClearAll = () => {
+    if (employees.length === 0) return;
+
+    const confirmed = window.confirm(
+      'Are you sure you want to delete all employees? This action cannot be undone.'
+    );
+
+    if (confirmed) {
+      // Cancel edit mode if active
+      if (editingId) {
+        handleCancelEdit();
+      }
+
+      // Clear all employees by removing them one by one
+      employees.forEach(emp => onRemoveEmployee(emp.id));
+
+      // Show success message
+      setShowSuccessMessage(true);
+
+      // Auto-dismiss success message after 5 seconds
+      setTimeout(() => setShowSuccessMessage(false), 5000);
+    }
+  };
   return (
     <Card
       title="Active Employees"
       description="Manage employees to match with attendance IDs"
       action={
-        <button
-          onClick={handleToggleCollapse}
-          className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-md p-1"
-          title={isCollapsed ? 'Expand employee list' : 'Collapse employee list'}
-        >
-          {isCollapsed ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-          <div className="flex items-center">
-            <Users className="w-4 h-4 mr-2" />
-            {employees.length} Active
-          </div>
-        </button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleClearAll}
+            disabled={employees.length === 0}
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:text-slate-400 disabled:hover:bg-transparent"
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Clear All
+          </Button>
+          <button
+            onClick={handleToggleCollapse}
+            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-md p-1"
+            title={isCollapsed ? 'Expand employee list' : 'Collapse employee list'}
+          >
+            {isCollapsed ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+            <div className="flex items-center">
+              <Users className="w-4 h-4 mr-2" />
+              {employees.length} Active
+            </div>
+          </button>
+        </div>
       }>
 
       <AnimatePresence initial={false}>
@@ -181,6 +220,15 @@ export function ActiveEmployees({
             </form>
 
             {error && <p className="text-red-500 text-sm mb-4 -mt-4 px-1">{error}</p>}
+
+            {showSuccessMessage && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-green-700 font-medium">
+                  All employees have been removed.
+                </p>
+              </div>
+            )}
 
             <div className="overflow-hidden rounded-lg border border-slate-200">
         <table className="min-w-full divide-y divide-slate-200">

@@ -498,15 +498,47 @@ export function generatePayrollData(groupedRecords: Map<string, FaceCheckRecord[
   
   sortedIds.forEach(biometricId => {
     const records = groupedRecords.get(biometricId)!;
+    
+    // Sort records: descending by date (latest first), then ascending by time within same day (earliest first)
+    const sortedRecords = [...records].sort((a, b) => {
+      const dateA = new Date(a.timestamp);
+      const dateB = new Date(b.timestamp);
+      
+      // Get date-only strings for comparison (removes time component)
+      const dateOnlyA = dateA.toDateString(); // e.g., "Mon Feb 24 2026"
+      const dateOnlyB = dateB.toDateString();
+      
+      if (dateOnlyA !== dateOnlyB) {
+        // Different dates: sort descending (latest date first)
+        return dateB.getTime() - dateA.getTime();
+      } else {
+        // Same date: sort ascending (earliest time first)
+        return dateA.getTime() - dateB.getTime();
+      }
+    });
+    
     uniqueTimestamps.set(biometricId, new Set());
     
-    records.forEach(record => {
+    // Track first occurrence of each date for yellow highlighting
+    const firstTimePerDay = new Map<string, string>(); // dateString -> formattedTime
+    
+    sortedRecords.forEach(record => {
       const formattedTime = formatPayrollTimestamp(record.timestamp);
       const timestampSet = uniqueTimestamps.get(biometricId)!;
+      
+      // Get date-only string for first-of-day detection
+      const dateOnly = new Date(record.timestamp).toDateString();
       
       // Only add if not duplicate
       if (!timestampSet.has(formattedTime)) {
         timestampSet.add(formattedTime);
+        
+        // Check if this is the first time entry for this date
+        const isFirstOfDay = !firstTimePerDay.has(dateOnly);
+        if (isFirstOfDay) {
+          firstTimePerDay.set(dateOnly, formattedTime);
+        }
+        
         payrollRecords.push({
           biometricId,
           employeeName: idToNameMap.get(biometricId) || 'Unknown',
@@ -514,7 +546,8 @@ export function generatePayrollData(groupedRecords: Map<string, FaceCheckRecord[
           state: '', // Empty as per requirements
           newState: '',
           exception: '',
-          operation: ''
+          operation: '',
+          isFirstOfDay // Flag for yellow highlighting in Excel
         });
       }
     });
@@ -549,6 +582,24 @@ export function generatePayrollExcel(data: PayrollRecord[], filename: string = '
     { wch: 18 },  // Employee Name
     { wch: 20 }   // Time
   ];
+  
+  // Apply yellow background to first-of-day entries in the Time column (column C)
+  data.forEach((row, index) => {
+    if (row.isFirstOfDay) {
+      const rowNum = index + 2; // +2 because row 1 is header, array index is 0-based
+      const cellAddress = `C${rowNum}`; // Column C = "Time"
+      
+      // Ensure the cell exists
+      if (ws[cellAddress]) {
+        // Apply yellow background color (#FFFF00)
+        ws[cellAddress].s = {
+          fill: {
+            fgColor: { rgb: "FFFF00" }
+          }
+        };
+      }
+    }
+  });
   
   // Add worksheet to workbook
   XLSX.utils.book_append_sheet(wb, ws, 'Attendance');

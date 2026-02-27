@@ -20,13 +20,15 @@ export function loadEmployees(): Employee[] {
   try {
     const stored = localStorage.getItem(EMPLOYEES_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Return the parsed array even if it's empty (user may have cleared it)
+      return parsed;
     }
   } catch (error) {
     console.error('Failed to load employees from localStorage:', error);
   }
   
-  // Return default employees if nothing stored
+  // Return default employees only on first load (nothing stored)
   return [
     { id: '1', name: 'Andrew Ferrer' },
     { id: '2', name: 'Carlo Alpis' }
