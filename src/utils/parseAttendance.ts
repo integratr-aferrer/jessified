@@ -176,11 +176,11 @@ export async function parseExcelFile(file: File): Promise<FaceCheckRecord[]> {
           const row = rawData[i];
           
           // Skip empty rows or rows with insufficient data
-          if (!row || row.length < 3) continue;
+          if (!row || row.length < 2) continue;
           
-          // Only extract timestamp (column B, index 1) and name (column C, index 2)
-          const timestampStr = row[1]?.toString().trim() || '';
-          const employeeName = row[2]?.toString().trim() || '';
+          // Only extract timestamp (column A, index 0) and name (column B, index 1)
+          const timestampStr = row[0]?.toString().trim() || '';
+          const employeeName = row[1]?.toString().trim() || '';
           
           // Skip if missing critical data
           if (!timestampStr || !employeeName) continue;
@@ -238,11 +238,11 @@ export async function parseCSVFile(file: File): Promise<FaceCheckRecord[]> {
           for (let i = 0; i < rawData.length; i++) {
             const row = rawData[i];
             
-            if (!row || row.length < 3) continue;
+            if (!row || row.length < 2) continue;
             
-            // Only extract timestamp (column B, index 1) and name (column C, index 2)
-            const timestampStr = row[1]?.toString().trim() || '';
-            const employeeName = row[2]?.toString().trim() || '';
+            // Only extract timestamp (column A, index 0) and name (column B, index 1)
+            const timestampStr = row[0]?.toString().trim() || '';
+            const employeeName = row[1]?.toString().trim() || '';
             
             if (!timestampStr || !employeeName) continue;
             if (timestampStr.length < 10 || employeeName.length < 2) continue;
