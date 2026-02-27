@@ -1,6 +1,7 @@
 import { Employee, ProcessedAttendance, RawAttendanceRecord, FaceCheckRecord, PayrollRecord, DateRange } from './types';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
+import ExcelJS from 'exceljs';
 
 export function parseRawData(input: string): RawAttendanceRecord[] {
   const lines = input.trim().split('\n');
@@ -519,25 +520,13 @@ export function generatePayrollData(groupedRecords: Map<string, FaceCheckRecord[
     
     uniqueTimestamps.set(biometricId, new Set());
     
-    // Track first occurrence of each date for yellow highlighting
-    const firstTimePerDay = new Map<string, string>(); // dateString -> formattedTime
-    
     sortedRecords.forEach(record => {
       const formattedTime = formatPayrollTimestamp(record.timestamp);
       const timestampSet = uniqueTimestamps.get(biometricId)!;
       
-      // Get date-only string for first-of-day detection
-      const dateOnly = new Date(record.timestamp).toDateString();
-      
       // Only add if not duplicate
       if (!timestampSet.has(formattedTime)) {
         timestampSet.add(formattedTime);
-        
-        // Check if this is the first time entry for this date
-        const isFirstOfDay = !firstTimePerDay.has(dateOnly);
-        if (isFirstOfDay) {
-          firstTimePerDay.set(dateOnly, formattedTime);
-        }
         
         payrollRecords.push({
           biometricId,
@@ -546,8 +535,7 @@ export function generatePayrollData(groupedRecords: Map<string, FaceCheckRecord[
           state: '', // Empty as per requirements
           newState: '',
           exception: '',
-          operation: '',
-          isFirstOfDay // Flag for yellow highlighting in Excel
+          operation: ''
         });
       }
     });
@@ -557,53 +545,132 @@ export function generatePayrollData(groupedRecords: Map<string, FaceCheckRecord[
 }
 
 /**
- * Generate Excel file for payroll system
+ * Generate Excel file for payroll system with ExcelJS
  */
-export function generatePayrollExcel(data: PayrollRecord[], filename: string = 'payroll_export.xlsx'): void {
-  // Create workbook
-  const wb = XLSX.utils.book_new();
+export async function generatePayrollExcel(data: PayrollRecord[], filename: string = 'payroll_export.xlsx'): Promise<void> {
+  // Create workbook and worksheet
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Attendance');
   
-  // Prepare data with headers (only 3 columns)
-  const wsData = [
-    ['Biometric ID', 'Employee Name', 'Time'],
-    ...data.map(row => [
-      row.biometricId,
-      row.employeeName,
-      row.time
-    ])
+  // Define columns with headers and widths
+  worksheet.columns = [
+    { header: 'Biometric ID', key: 'biometricId', width: 12 },
+    { header: 'Employee Name', key: 'employeeName', width: 18 },
+    { header: 'Time', key: 'time', width: 20 }
   ];
   
-  // Create worksheet
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  
-  // Set column widths (only 3 columns)
-  ws['!cols'] = [
-    { wch: 12 },  // Biometric ID
-    { wch: 18 },  // Employee Name
-    { wch: 20 }   // Time
-  ];
-  
-  // Apply yellow background to first-of-day entries in the Time column (column C)
-  data.forEach((row, index) => {
-    if (row.isFirstOfDay) {
-      const rowNum = index + 2; // +2 because row 1 is header, array index is 0-based
-      const cellAddress = `C${rowNum}`; // Column C = "Time"
-      
-      // Ensure the cell exists
-      if (ws[cellAddress]) {
-        // Apply yellow background color (#FFFF00)
-        ws[cellAddress].s = {
-          fill: {
-            fgColor: { rgb: "FFFF00" }
-          }
-        };
-      }
-    }
+  // Add data rows
+  data.forEach((record) => {
+    worksheet.addRow({
+      biometricId: record.biometricId,
+      employeeName: record.employeeName,
+      time: record.time
+    });
   });
   
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+  // Generate Excel file as buffer
+  const buffer = await workbook.xlsx.writeBuffer();
   
-  // Generate and download file
-  XLSX.writeFile(wb, filename);
+  // Create blob and download file
+  const blob = new Blob([buffer], { 
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  
+  // Clean up
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Parse Excel file containing employee data
+ * Format: Column A = ID, Column B = Name (no headers, just pure data)
+ */
+export async function parseEmployeeExcelFile(file: File): Promise<Employee[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        
+        // Get first sheet
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert to array of arrays
+        const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        const employees: Employee[] = [];
+        
+        // Parse rows (no header, start from row 0)
+        for (let i = 0; i < rawData.length; i++) {
+          const row = rawData[i];
+          
+          // Skip empty rows
+          if (!row || row.length < 2) continue;
+          
+          // Column A = ID (index 0), Column B = Name (index 1)
+          const id = row[0]?.toString().trim() || '';
+          const name = row[1]?.toString().trim() || '';
+          
+          // Skip if either is empty
+          if (!id || !name) continue;
+          
+          employees.push({ id, name });
+        }
+        
+        resolve(employees);
+      } catch (err) {
+        reject(new Error('Failed to parse employee Excel file: ' + (err instanceof Error ? err.message : 'Unknown error')));
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Failed to read file'));
+    };
+    
+    reader.readAsBinaryString(file);
+  });
+}
+
+/**
+ * Generate template Excel file for employee upload
+ * Format: Column A = ID, Column B = Name (no headers, just sample data)
+ */
+export async function generateEmployeeTemplate(filename: string = 'employee_template.xlsx'): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Employees');
+  
+  // Sample data (no headers, just data)
+  const sampleEmployees = [
+    ['1', 'Andrew Ferrer'],
+    ['2', 'Carlo Alpis'],
+    ['3', 'John Doe']
+  ];
+  
+  // Add rows
+  sampleEmployees.forEach(emp => {
+    worksheet.addRow(emp);
+  });
+  
+  // Set column widths
+  worksheet.getColumn(1).width = 12;  // Column A - ID
+  worksheet.getColumn(2).width = 20;  // Column B - Name
+  
+  // Generate and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { 
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, UserPlus, Users, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, UserPlus, Users, Edit2, Check, X, ChevronDown, ChevronUp, Upload, Download, AlertCircle } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Employee } from '../utils/types';
 import { AnimatePresence, motion } from 'framer-motion';
+import { parseEmployeeExcelFile, generateEmployeeTemplate } from '../utils/parseAttendance';
 
 interface ActiveEmployeesProps {
   employees: Employee[];
@@ -36,6 +37,11 @@ export function ActiveEmployees({
 
   // Success message state for Clear All action
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  // Upload functionality state
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,12 +138,102 @@ export function ActiveEmployees({
       setTimeout(() => setShowSuccessMessage(false), 5000);
     }
   };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await generateEmployeeTemplate();
+    } catch (err) {
+      console.error('Failed to download template:', err);
+      alert('Failed to download template. Please try again.');
+    }
+  };
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validExtensions = ['.xlsx', '.xls'];
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    if (!validExtensions.includes(fileExtension)) {
+      setUploadError('Invalid file type. Please upload an Excel file (.xlsx or .xls)');
+      setUploadSuccess('');
+      e.target.value = ''; // Reset file input
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError('');
+    setUploadSuccess('');
+
+    try {
+      // Parse the Excel file
+      const parsedEmployees = await parseEmployeeExcelFile(file);
+
+      if (parsedEmployees.length === 0) {
+        setUploadError('No valid employee data found in the file');
+        setIsUploading(false);
+        e.target.value = '';
+        return;
+      }
+
+      // Clear existing employees first
+      employees.forEach(emp => onRemoveEmployee(emp.id));
+
+      // Add parsed employees
+      parsedEmployees.forEach(emp => onAddEmployee(emp));
+
+      // Show success message
+      const count = parsedEmployees.length;
+      setUploadSuccess(`${count} employee${count > 1 ? 's' : ''} imported successfully`);
+
+      // Auto-dismiss success message after 5 seconds
+      setTimeout(() => setUploadSuccess(''), 5000);
+
+    } catch (err) {
+      console.error('Failed to upload employees:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to import employees. Please check the file format.');
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // Reset file input
+    }
+  };
+
   return (
     <Card
       title="Active Employees"
       description="Manage employees to match with attendance IDs"
       action={
         <div className="flex items-center gap-3">
+          <Button
+            onClick={handleDownloadTemplate}
+            variant="ghost"
+            size="sm"
+            className="text-slate-600 hover:text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Template
+          </Button>
+          <div className="relative">
+            <input
+              type="file"
+              id="employee-upload"
+              accept=".xlsx,.xls"
+              onChange={handleUploadFile}
+              className="hidden"
+            />
+            <Button
+              onClick={() => document.getElementById('employee-upload')?.click()}
+              variant="secondary"
+              size="sm"
+              isLoading={isUploading}
+              disabled={isUploading}
+            >
+              <Upload className="w-4 h-4 mr-1" />
+              Upload
+            </Button>
+          </div>
           <Button
             onClick={handleClearAll}
             disabled={employees.length === 0}
@@ -220,6 +316,24 @@ export function ActiveEmployees({
             </form>
 
             {error && <p className="text-red-500 text-sm mb-4 -mt-4 px-1">{error}</p>}
+
+            {uploadSuccess && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-green-700 font-medium">
+                  {uploadSuccess}
+                </p>
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700 font-medium">
+                  {uploadError}
+                </p>
+              </div>
+            )}
 
             {showSuccessMessage && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">

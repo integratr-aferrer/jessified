@@ -39,7 +39,6 @@ export interface PayrollRecord {
   newState: string;         // "" (empty)
   exception: string;        // "" (empty)
   operation: string;        // "" (empty)
-  isFirstOfDay?: boolean;   // Flag for yellow highlighting (first time entry of each day)
 }
 
 // Date range filter
