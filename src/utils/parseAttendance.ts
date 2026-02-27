@@ -387,7 +387,6 @@ export function matchEmployeeNames(
       // Use normalized name as key for consistent lookups
       matched.set(normalizedName, employeeNameMap.get(normalizedName)!);
     } else {
-      console.log('[DEBUG] Unmatched employee:', record.employeeName);
       unmatchedSet.add(record.employeeName);
     }
   });

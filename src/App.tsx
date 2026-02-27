@@ -95,7 +95,6 @@ export function App() {
     const { unmatched } = matchEmployeeNames(records, employees);
     
     if (unmatched.length > 0) {
-      console.log('[WARNING] Found unmatched employees:', unmatched);
       setUnmatchedEmployeeNames(unmatched);
       setShowUnmatchedWarning(true);
       
