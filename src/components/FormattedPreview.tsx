@@ -54,37 +54,11 @@ export function FormattedPreview({ data }: FormattedPreviewProps) {
               >
                 Employee Name
               </th>
-              <th scope="col" className="px-3 py-3 w-8"></th>
-              <th scope="col" className="px-3 py-3 w-8"></th>
               <th
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
               >
                 Time
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-              >
-                State
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-              >
-                New State
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-              >
-                Exception
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
-              >
-                Operation
               </th>
             </tr>
           </thead>
@@ -92,7 +66,7 @@ export function FormattedPreview({ data }: FormattedPreviewProps) {
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={3}
                   className="px-6 py-12 text-center text-slate-500"
                 >
                   <div className="flex flex-col items-center justify-center">
@@ -122,22 +96,8 @@ export function FormattedPreview({ data }: FormattedPreviewProps) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                       {record.employeeName}
                     </td>
-                    <td className="px-3 py-4"></td>
-                    <td className="px-3 py-4"></td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                       {record.time}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {record.state}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {record.newState}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {record.exception}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {record.operation}
                     </td>
                   </motion.tr>
                 ))

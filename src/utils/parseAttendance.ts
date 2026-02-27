@@ -178,7 +178,7 @@ export async function parseExcelFile(file: File): Promise<FaceCheckRecord[]> {
           // Skip empty rows or rows with insufficient data
           if (!row || row.length < 3) continue;
           
-          const status = row[0]?.toString().trim() || '';
+          // Only extract timestamp (column B, index 1) and name (column C, index 2)
           const timestampStr = row[1]?.toString().trim() || '';
           const employeeName = row[2]?.toString().trim() || '';
           
@@ -198,11 +198,11 @@ export async function parseExcelFile(file: File): Promise<FaceCheckRecord[]> {
             }
             
             records.push({
-              status,
+              status: '',
               timestamp,
               employeeName,
-              recognitionInfo: row[4]?.toString().trim() || '',
-              imageFilename: row[14]?.toString().trim() || '' // Column O (index 14)
+              recognitionInfo: '',
+              imageFilename: ''
             });
           } catch (err) {
             console.warn(`Failed to parse row ${i + 1}:`, err);
@@ -240,7 +240,7 @@ export async function parseCSVFile(file: File): Promise<FaceCheckRecord[]> {
             
             if (!row || row.length < 3) continue;
             
-            const status = row[0]?.toString().trim() || '';
+            // Only extract timestamp (column B, index 1) and name (column C, index 2)
             const timestampStr = row[1]?.toString().trim() || '';
             const employeeName = row[2]?.toString().trim() || '';
             
@@ -256,11 +256,11 @@ export async function parseCSVFile(file: File): Promise<FaceCheckRecord[]> {
               }
               
               records.push({
-                status,
+                status: '',
                 timestamp,
                 employeeName,
-                recognitionInfo: row[4]?.toString().trim() || '',
-                imageFilename: row[14]?.toString().trim() || ''
+                recognitionInfo: '',
+                imageFilename: ''
               });
             } catch (err) {
               console.warn(`Failed to parse row ${i + 1}:`, err);
@@ -531,36 +531,24 @@ export function generatePayrollExcel(data: PayrollRecord[], filename: string = '
   // Create workbook
   const wb = XLSX.utils.book_new();
   
-  // Prepare data with headers
+  // Prepare data with headers (only 3 columns)
   const wsData = [
-    ['Biometric ID', 'Employee Name', '', '', 'Time', 'State', 'New State', 'Exception', 'Operation'],
+    ['Biometric ID', 'Employee Name', 'Time'],
     ...data.map(row => [
       row.biometricId,
       row.employeeName,
-      '',
-      '',
-      row.time,
-      row.state,
-      row.newState,
-      row.exception,
-      row.operation
+      row.time
     ])
   ];
   
   // Create worksheet
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   
-  // Set column widths
+  // Set column widths (only 3 columns)
   ws['!cols'] = [
     { wch: 12 },  // Biometric ID
     { wch: 18 },  // Employee Name
-    { wch: 8 },   // Empty
-    { wch: 8 },   // Empty
-    { wch: 20 },  // Time
-    { wch: 10 },  // State
-    { wch: 10 },  // New State
-    { wch: 12 },  // Exception
-    { wch: 12 }   // Operation
+    { wch: 20 }   // Time
   ];
   
   // Add worksheet to workbook

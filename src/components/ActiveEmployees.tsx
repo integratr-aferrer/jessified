@@ -229,16 +229,17 @@ export function ActiveEmployees({
                     key={employee.id}
                     initial={{
                       opacity: 0,
-                      height: 0
+                      x: -20
                     }}
                     animate={{
                       opacity: 1,
-                      height: 'auto'
+                      x: 0
                     }}
                     exit={{
                       opacity: 0,
-                      height: 0
+                      x: -20
                     }}
+                    transition={{ duration: 0.2 }}
                     className="hover:bg-slate-50 transition-colors">
 
                     {isEditing ? (

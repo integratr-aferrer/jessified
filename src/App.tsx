@@ -12,12 +12,11 @@ import {
   matchEmployeeNames,
   filterByDateRange,
   groupByEmployee,
-  generatePayrollData,
-  autoAddEmployees
+  generatePayrollData
 } from './utils/parseAttendance';
 import { loadEmployees, saveEmployees } from './utils/storage';
 import { sortEmployeesById } from './utils/sortEmployees';
-import { Info, X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 
 export function App() {
   // State for employees (load from localStorage)
@@ -35,9 +34,9 @@ export function App() {
   // State for processed payroll data
   const [payrollData, setPayrollData] = useState<PayrollRecord[]>([]);
   
-  // State for auto-added employees notification
-  const [autoAddedEmployees, setAutoAddedEmployees] = useState<Employee[]>([]);
-  const [showAutoAddBanner, setShowAutoAddBanner] = useState(false);
+  // State for unmatched employees warning
+  const [unmatchedEmployeeNames, setUnmatchedEmployeeNames] = useState<string[]>([]);
+  const [showUnmatchedWarning, setShowUnmatchedWarning] = useState(false);
 
   // Save employees to localStorage whenever they change
   useEffect(() => {
@@ -92,19 +91,20 @@ export function App() {
   const handleFileUploaded = (records: FaceCheckRecord[]) => {
     setFaceCheckRecords(records);
     
-    // Auto-add unmatched employees
+    // Check for unmatched employees and show warning
     const { unmatched } = matchEmployeeNames(records, employees);
     
     if (unmatched.length > 0) {
-      console.log('[AUTO-ADD] Found unmatched employees:', unmatched);
-      const newEmployees = autoAddEmployees(unmatched, employees);
-      console.log('[AUTO-ADD] Auto-adding employees with IDs:', newEmployees);
-      setEmployees(prev => [...prev, ...newEmployees]);
-      setAutoAddedEmployees(newEmployees);
-      setShowAutoAddBanner(true);
+      console.log('[WARNING] Found unmatched employees:', unmatched);
+      setUnmatchedEmployeeNames(unmatched);
+      setShowUnmatchedWarning(true);
       
-      // Auto-hide banner after 10 seconds
-      setTimeout(() => setShowAutoAddBanner(false), 10000);
+      // Auto-hide warning after 15 seconds
+      setTimeout(() => setShowUnmatchedWarning(false), 15000);
+    } else {
+      // Clear any existing warning if all employees matched
+      setUnmatchedEmployeeNames([]);
+      setShowUnmatchedWarning(false);
     }
   };
 
@@ -141,37 +141,36 @@ export function App() {
           />
         </section>
 
-        {/* Auto-Added Employees Info Banner */}
-        {showAutoAddBanner && autoAddedEmployees.length > 0 && (
+        {/* Unmatched Employees Warning Banner */}
+        {showUnmatchedWarning && unmatchedEmployeeNames.length > 0 && (
           <section>
-            <div className="bg-secondary-50 border border-secondary-200 rounded-lg p-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-start">
-                  <Info className="h-5 w-5 text-secondary-500 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-secondary-800">
-                      {autoAddedEmployees.length} New Employee{autoAddedEmployees.length !== 1 ? 's' : ''} Auto-Added
+                    <h3 className="text-sm font-medium text-yellow-800">
+                      {unmatchedEmployeeNames.length} Employee{unmatchedEmployeeNames.length !== 1 ? 's' : ''} Not Found
                     </h3>
-                    <div className="mt-2 text-sm text-secondary-700">
-                      <p className="mb-1">The following employees were automatically assigned Biometric IDs and added to your Active Employees list:</p>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <p className="mb-1">The following employees from the uploaded file are not in your Active Employees list:</p>
                       <ul className="list-disc list-inside space-y-1">
-                        {autoAddedEmployees.map(emp => (
-                          <li key={emp.id}>
-                            <span className="font-medium">{emp.name}</span>
-                            <span className="text-secondary-600 ml-1">(Biometric ID: {emp.id})</span>
+                        {unmatchedEmployeeNames.map((name, idx) => (
+                          <li key={idx}>
+                            <span className="font-medium">{name}</span>
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-2 text-xs text-secondary-600">
-                        All their records are included in the export. You can edit their IDs in the Active Employees section above if needed.
+                      <p className="mt-2 text-xs text-yellow-600">
+                        Their records will not be included in the export. Add them to Active Employees above to include their data.
                       </p>
                     </div>
                   </div>
                 </div>
                 <button 
-                  onClick={() => setShowAutoAddBanner(false)}
-                  className="flex-shrink-0 ml-4 text-secondary-400 hover:text-secondary-600 transition-colors"
-                  aria-label="Dismiss notification"
+                  onClick={() => setShowUnmatchedWarning(false)}
+                  className="flex-shrink-0 ml-4 text-yellow-400 hover:text-yellow-600 transition-colors"
+                  aria-label="Dismiss warning"
                 >
                   <X className="h-5 w-5" />
                 </button>
